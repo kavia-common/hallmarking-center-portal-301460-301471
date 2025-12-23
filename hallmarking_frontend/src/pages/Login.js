@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { loginUser, setToken } from '../services/apiClient';
+import { loginUser } from '../services/apiClient';
 import { useToast } from '../components/Toast';
 
 // PUBLIC_INTERFACE
 export default function Login() {
-  /** Login form integrated with API; stores JWT on success. */
-  const [form, setForm] = useState({ email: '', password: '' });
+  /** Login form integrated with DRF session-based authentication. */
+  const [form, setForm] = useState({ username: '', password: '' });
   const [status, setStatus] = useState({ loading: false, error: null });
   const { notify } = useToast();
 
@@ -17,8 +17,8 @@ export default function Login() {
     e.preventDefault();
     setStatus({ loading: true, error: null });
 
-    if (!form.email || !form.password) {
-      setStatus({ loading: false, error: 'Please provide email and password.' });
+    if (!form.username || !form.password) {
+      setStatus({ loading: false, error: 'Please provide username and password.' });
       return;
     }
 
@@ -30,19 +30,15 @@ export default function Login() {
       return;
     }
 
-    // Expect token in response: accessToken or token
-    const token = resp.data?.accessToken || resp.data?.token;
-    if (!token) {
-      const msg = 'Login response missing token.';
-      setStatus({ loading: false, error: msg });
-      notify(msg, 'error');
-      return;
-    }
-
-    setToken(token);
+    // DRF session-based auth - session cookie is set automatically
+    // Response contains user data
     setStatus({ loading: false, error: null });
-    // Navigate to home
-    window.location.href = '/';
+    notify(`Welcome back, ${resp.data?.user?.username || 'User'}!`, 'success');
+    
+    // Navigate to home after successful login
+    setTimeout(() => {
+      window.location.href = '/';
+    }, 1000);
   }
 
   return (
@@ -56,13 +52,29 @@ export default function Login() {
           {status.error && <div className="status error" role="alert">{status.error}</div>}
 
           <div className="field">
-            <label className="label" htmlFor="email">Email address</label>
-            <input className="input" id="email" type="email" name="email" value={form.email} onChange={onChange} placeholder="you@example.com" />
+            <label className="label" htmlFor="username">Username</label>
+            <input 
+              className="input" 
+              id="username" 
+              type="text" 
+              name="username" 
+              value={form.username} 
+              onChange={onChange} 
+              placeholder="your_username" 
+            />
           </div>
 
           <div className="field">
             <label className="label" htmlFor="password">Password</label>
-            <input className="input" id="password" type="password" name="password" value={form.password} onChange={onChange} placeholder="••••••••" />
+            <input 
+              className="input" 
+              id="password" 
+              type="password" 
+              name="password" 
+              value={form.password} 
+              onChange={onChange} 
+              placeholder="••••••••" 
+            />
           </div>
 
           <div style={{ display: 'flex', gap: '.5rem' }}>
