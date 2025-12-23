@@ -1,28 +1,48 @@
 import { useState } from 'react';
+import { loginUser, setToken } from '../services/apiClient';
+import { useToast } from '../components/Toast';
 
 // PUBLIC_INTERFACE
 export default function Login() {
-  /** Login form scaffold with local loading and error placeholders. */
+  /** Login form integrated with API; stores JWT on success. */
   const [form, setForm] = useState({ email: '', password: '' });
   const [status, setStatus] = useState({ loading: false, error: null });
+  const { notify } = useToast();
 
   function onChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
   }
 
-  function onSubmit(e) {
+  async function onSubmit(e) {
     e.preventDefault();
     setStatus({ loading: true, error: null });
 
-    setTimeout(() => {
-      if (!form.email || !form.password) {
-        setStatus({ loading: false, error: 'Please provide email and password.' });
-      } else {
-        // Placeholder - success path
-        setStatus({ loading: false, error: null });
-        window.location.href = '/';
-      }
-    }, 500);
+    if (!form.email || !form.password) {
+      setStatus({ loading: false, error: 'Please provide email and password.' });
+      return;
+    }
+
+    const resp = await loginUser(form);
+    if (!resp.ok) {
+      const msg = resp.error || 'Failed to login.';
+      setStatus({ loading: false, error: msg });
+      notify(msg, 'error');
+      return;
+    }
+
+    // Expect token in response: accessToken or token
+    const token = resp.data?.accessToken || resp.data?.token;
+    if (!token) {
+      const msg = 'Login response missing token.';
+      setStatus({ loading: false, error: msg });
+      notify(msg, 'error');
+      return;
+    }
+
+    setToken(token);
+    setStatus({ loading: false, error: null });
+    // Navigate to home
+    window.location.href = '/';
   }
 
   return (
@@ -46,7 +66,7 @@ export default function Login() {
           </div>
 
           <div style={{ display: 'flex', gap: '.5rem' }}>
-            <button type="submit" className="btn btn-primary">Login</button>
+            <button type="submit" className="btn btn-primary" disabled={status.loading}>Login</button>
             <a className="btn" href="/register">Create account</a>
           </div>
         </form>

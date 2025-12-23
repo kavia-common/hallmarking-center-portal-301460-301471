@@ -1,27 +1,40 @@
 import { useState } from 'react';
+import { registerUser } from '../services/apiClient';
+import { useToast } from '../components/Toast';
 
 // PUBLIC_INTERFACE
 export default function Register() {
-  /** Registration form scaffold with basic validation and loading/error placeholders. */
+  /** Registration form with API integration and graceful fallback errors. */
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [status, setStatus] = useState({ loading: false, error: null, success: null });
+  const { notify } = useToast();
 
   function onChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
   }
 
-  function onSubmit(e) {
+  async function onSubmit(e) {
     e.preventDefault();
     setStatus({ loading: true, error: null, success: null });
 
-    // Placeholder: simulate request
-    setTimeout(() => {
-      if (!form.name || !form.email || !form.password) {
-        setStatus({ loading: false, error: 'Please fill all fields.', success: null });
-      } else {
-        setStatus({ loading: false, error: null, success: 'Registered successfully (placeholder). You can login now.' });
-      }
-    }, 600);
+    if (!form.name || !form.email || !form.password) {
+      setStatus({ loading: false, error: 'Please fill all fields.', success: null });
+      return;
+    }
+
+    const resp = await registerUser(form);
+    if (!resp.ok) {
+      const msg = resp.error || 'Failed to register.';
+      setStatus({ loading: false, error: msg, success: null });
+      notify(msg, 'error');
+      return;
+    }
+
+    setStatus({
+      loading: false,
+      error: null,
+      success: 'Registered successfully. You can login now.',
+    });
   }
 
   return (
@@ -52,7 +65,7 @@ export default function Register() {
           </div>
 
           <div style={{ display: 'flex', gap: '.5rem' }}>
-            <button type="submit" className="btn btn-primary">Register</button>
+            <button type="submit" className="btn btn-primary" disabled={status.loading}>Register</button>
             <a className="btn" href="/login">I already have an account</a>
           </div>
         </form>

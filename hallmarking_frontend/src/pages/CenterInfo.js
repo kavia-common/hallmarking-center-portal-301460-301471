@@ -1,16 +1,20 @@
 import { useEffect, useState } from 'react';
+import { fetchCenterInfo } from '../services/apiClient';
+import { useToast } from '../components/Toast';
 
-// Placeholder fetch states without calling backend yet
+// Placeholder fetch states, with API call and graceful fallback
 function useCenterInfo() {
   const [state, setState] = useState({ loading: true, error: null, data: null });
+  const { notify } = useToast();
 
   useEffect(() => {
-    const t = setTimeout(() => {
-      // Simulated data
-      setState({
-        loading: false,
-        error: null,
-        data: {
+    let cancelled = false;
+    async function load() {
+      setState({ loading: true, error: null, data: null });
+      const resp = await fetchCenterInfo();
+      if (!resp.ok) {
+        // Fallback to placeholder data
+        const fallback = {
           name: 'National Gold Hallmarking & Assay Center',
           description:
             'Accredited hallmarking services ensuring purity and authenticity of precious metals. We serve retail jewelers, bullion traders, and consumers.',
@@ -19,19 +23,30 @@ function useCenterInfo() {
             'Same-day certification options',
             'Advanced spectrometry and fire assay',
           ],
-          cta: 'Explore Services'
+          cta: 'Explore Services',
+        };
+        if (!cancelled) {
+          setState({ loading: false, error: resp.error || 'Backend not available; showing sample info.', data: fallback });
         }
-      });
-    }, 400);
-    return () => clearTimeout(t);
-  }, []);
+        notify(resp.error || 'Unable to fetch center info; showing sample info.', 'error');
+        return;
+      }
+      if (!cancelled) {
+        setState({ loading: false, error: null, data: resp.data });
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [notify]);
 
   return state;
 }
 
 // PUBLIC_INTERFACE
 export default function CenterInfo() {
-  /** Center info page with hero and details; uses placeholder data and simulates loading and error states. */
+  /** Center info page with API integration and graceful placeholder fallback. */
   const { loading, error, data } = useCenterInfo();
 
   return (
@@ -52,7 +67,7 @@ export default function CenterInfo() {
 
       <div className="container" style={{ padding: '1.5rem 0' }}>
         {loading && <div className="status" role="status">Loading center information…</div>}
-        {error && <div className="status error" role="alert">Failed to load center info. Please try again.</div>}
+        {error && <div className="status error" role="alert">{error}</div>}
         {data && (
           <div className="grid" aria-live="polite">
             <div className="card">
@@ -63,7 +78,7 @@ export default function CenterInfo() {
             <div className="card">
               <span className="badge">Highlights</span>
               <ul style={{ marginTop: '.5rem', paddingLeft: '1rem', listStyle: 'disc' }}>
-                {data.highlights.map((h, i) => (<li key={i}>{h}</li>))}
+                {(data.highlights || []).map((h, i) => (<li key={i}>{h}</li>))}
               </ul>
             </div>
             <div className="card">

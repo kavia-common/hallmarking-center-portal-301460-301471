@@ -1,29 +1,47 @@
 import { useEffect, useState } from 'react';
+import { fetchPortfolio } from '../services/apiClient';
+import { useToast } from '../components/Toast';
 
 function usePortfolio() {
   const [state, setState] = useState({ loading: true, error: null, items: [] });
+  const { notify } = useToast();
+
   useEffect(() => {
-    const t = setTimeout(() => {
-      setState({
-        loading: false,
-        error: null,
-        items: [
+    let cancelled = false;
+    async function load() {
+      setState({ loading: true, error: null, items: [] });
+      const resp = await fetchPortfolio();
+      if (!resp.ok) {
+        const fallback = [
           { id: 'srv-101', title: 'Gold Purity Assay', kind: 'Service', note: 'Fire Assay & XRF', badge: 'BIS' },
           { id: 'srv-102', title: 'Silver Purity Assay', kind: 'Service', note: 'XRF', badge: 'ISO' },
           { id: 'cert-001', title: 'BIS Accreditation', kind: 'Certification', note: 'Valid 2025', badge: 'BIS' },
           { id: 'srv-103', title: 'Platinum Testing', kind: 'Service', note: 'XRF', badge: 'Accredited' },
           { id: 'cert-002', title: 'ISO/IEC 17025', kind: 'Certification', note: 'Laboratory Competence', badge: 'ISO' },
-        ]
-      });
-    }, 450);
-    return () => clearTimeout(t);
-  }, []);
+        ];
+        if (!cancelled) {
+          setState({ loading: false, error: resp.error || 'Backend not available; showing sample portfolio.', items: fallback });
+        }
+        notify(resp.error || 'Unable to fetch portfolio; showing sample items.', 'error');
+        return;
+      }
+      const list = Array.isArray(resp.data) ? resp.data : resp.data?.items || [];
+      if (!cancelled) {
+        setState({ loading: false, error: null, items: list });
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [notify]);
+
   return state;
 }
 
 // PUBLIC_INTERFACE
 export default function Portfolio() {
-  /** Portfolio grid showing services and certifications using placeholder data. */
+  /** Portfolio grid fetching from API with graceful fallback to sample items. */
   const { loading, error, items } = usePortfolio();
 
   return (
@@ -35,12 +53,12 @@ export default function Portfolio() {
         </div>
 
         {loading && <div className="status" role="status">Loading portfolio…</div>}
-        {error && <div className="status error" role="alert">Failed to load portfolio.</div>}
+        {error && <div className="status error" role="alert">{error}</div>}
 
         {!loading && !error && (
           <div className="grid" role="list">
             {items.map(item => (
-              <article key={item.id} className="card" role="listitem" aria-label={`${item.kind}: ${item.title}`}>
+              <article key={item.id || item.title} className="card" role="listitem" aria-label={`${item.kind}: ${item.title}`}>
                 <span className="badge">{item.badge}</span>
                 <h3 style={{ marginTop: '.5rem' }}>{item.title}</h3>
                 <p>{item.kind} — {item.note}</p>
