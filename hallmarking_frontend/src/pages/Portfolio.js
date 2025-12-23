@@ -25,9 +25,39 @@ function usePortfolio() {
         notify(resp.error || 'Unable to fetch portfolio; showing sample items.', 'error');
         return;
       }
-      const list = Array.isArray(resp.data) ? resp.data : resp.data?.items || [];
+      
+      // Transform backend data to frontend format
+      const backendData = resp.data;
+      const items = [];
+      
+      // Add services
+      if (backendData.services && Array.isArray(backendData.services)) {
+        backendData.services.forEach(service => {
+          items.push({
+            id: `srv-${service.id}`,
+            title: service.name,
+            kind: 'Service',
+            note: service.description || `Price: ₹${service.price}`,
+            badge: service.is_active ? 'Active' : 'Inactive'
+          });
+        });
+      }
+      
+      // Add certifications
+      if (backendData.certifications && Array.isArray(backendData.certifications)) {
+        backendData.certifications.forEach(cert => {
+          items.push({
+            id: `cert-${cert.id}`,
+            title: cert.title,
+            kind: 'Certification',
+            note: cert.certificate_number || cert.description,
+            badge: cert.issued_date ? new Date(cert.issued_date).getFullYear() : 'Certified'
+          });
+        });
+      }
+      
       if (!cancelled) {
-        setState({ loading: false, error: null, items: list });
+        setState({ loading: false, error: null, items });
       }
     }
     load();

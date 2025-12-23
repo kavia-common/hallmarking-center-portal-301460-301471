@@ -31,8 +31,22 @@ function useCenterInfo() {
         notify(resp.error || 'Unable to fetch center info; showing sample info.', 'error');
         return;
       }
+      
+      // Transform backend data to frontend format
+      const backendData = resp.data;
+      const transformed = {
+        name: backendData.name,
+        description: backendData.description,
+        highlights: [
+          backendData.address,
+          backendData.contact_email,
+          backendData.contact_phone
+        ].filter(Boolean),
+        cta: 'Explore Services',
+      };
+      
       if (!cancelled) {
-        setState({ loading: false, error: null, data: resp.data });
+        setState({ loading: false, error: null, data: transformed });
       }
     }
     load();
